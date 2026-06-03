@@ -4,8 +4,12 @@ import React, { useEffect, useState, useCallback } from "react";
 import { db, BlockItem, NotebookPage } from "@/lib/db";
 import MathBlock from "./MathBlock";
 import TextBlock from "./TextBlock";
-import { X, Type, Sigma, Columns, Expand, Shrink } from "lucide-react";
-import { calculateSimplification, calculateExpansion } from "@/lib/compute";
+import { X, Type, Sigma, Columns, Expand, Shrink, Group } from "lucide-react";
+import {
+  calculateSimplification,
+  calculateExpansion,
+  calculateFactoring,
+} from "@/lib/compute";
 
 interface NotebookProps {
   activePageId: string | null;
@@ -245,12 +249,26 @@ export default function Notebook({
               )}
               {block.type === "math" && (
                 <button
+                  onClick={() => magicFunction(index, calculateFactoring)}
+                  className={`p-1 border rounded-md transition-colors cursor-pointer ${
+                    theme === "light"
+                      ? "bg-white border-neutral-200 text-neutral-400 hover:text-black"
+                      : "bg-neutral-900 border-neutral-800 text-neutral-500 hover:text-white"
+                  }`}
+                  title="factor"
+                >
+                  <Group className="w-3 h-3" />
+                </button>
+              )}
+              {block.type === "math" && (
+                <button
                   onClick={() => magicFunction(index, calculateSimplification)}
                   className={`p-1 border rounded-md transition-colors cursor-pointer ${
                     theme === "light"
                       ? "bg-white border-neutral-200 text-neutral-400 hover:text-black"
                       : "bg-neutral-900 border-neutral-800 text-neutral-500 hover:text-white"
                   }`}
+                  title="simplify"
                 >
                   <Shrink className="w-3 h-3" />
                 </button>
@@ -263,6 +281,7 @@ export default function Notebook({
                       ? "bg-white border-neutral-200 text-neutral-400 hover:text-black"
                       : "bg-neutral-900 border-neutral-800 text-neutral-500 hover:text-white"
                   }`}
+                  title="expand"
                 >
                   <Expand className="w-3 h-3" />
                 </button>

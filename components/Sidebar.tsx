@@ -176,7 +176,7 @@ export default function Sidebar({
                 }}
                 className="opacity-0 group-hover:opacity-100 p-2 text-neutral-400 hover:text-red-500 transition-opacity cursor-pointer"
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <Trash2 className="w-0 group-hover:w-3.5 transition-all h-3.5" />
               </button>
             </div>
           ))}

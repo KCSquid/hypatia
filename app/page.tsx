@@ -116,7 +116,7 @@ export default function Workspace() {
 
       <main className="flex-1 overflow-y-auto p-16 flex flex-col items-center justify-start relative pt-24">
         <div
-          className={`w-full max-w-2xl mb-12 flex items-center justify-start gap-4 fixed top-0 ${theme === "light" ? "bg-white/25" : "bg-black/25"} backdrop-blur-xs pt-8 pb-16 mask-[linear-gradient(to_bottom,white_60%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,white_60%,transparent_100%)]`}
+          className={`w-full max-w-2xl mb-12 flex items-center justify-start gap-4 fixed top-0 z-10 ${theme === "light" ? "bg-white/25" : "bg-black/25"} backdrop-blur-xs pt-8 pb-16 mask-[linear-gradient(to_bottom,white_60%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,white_60%,transparent_100%)]`}
         >
           <button
             onClick={() => setIsSidebarOpen(true)}
