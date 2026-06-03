@@ -4,8 +4,8 @@ import React, { useEffect, useState, useCallback } from "react";
 import { db, BlockItem, NotebookPage } from "@/lib/db";
 import MathBlock from "./MathBlock";
 import TextBlock from "./TextBlock";
-import { X, Type, Sigma, Columns, Shrimp } from "lucide-react";
-import { simplify } from "@/lib/compute";
+import { X, Type, Sigma, Columns, Expand, Shrink } from "lucide-react";
+import { calculateSimplification, calculateExpansion } from "@/lib/compute";
 
 interface NotebookProps {
   activePageId: string | null;
@@ -149,15 +149,19 @@ export default function Notebook({
     );
   }
 
-  const calculateSimplification = async (index: number) => {
+  const magicFunction = async (
+    index: number,
+    tool: (value: string) => Promise<string | null>,
+  ) => {
     const currentValue = pageData.blocks[index].latex;
     if (!currentValue) {
       return;
     }
     try {
-      const result = await simplify(currentValue);
+      const result = await tool(currentValue);
       if (!result || result.trim() === currentValue.trim()) return;
       if (result.includes("\\error")) {
+        console.log(result);
         setError(index);
         return;
       }
@@ -226,7 +230,7 @@ export default function Notebook({
               />
             )}
 
-            <div className="absolute -right-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 grid grid-cols-1 grid-rows-2 gap-1">
+            <div className="absolute -right-16 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 grid grid-cols-2 grid-rows-2 gap-1">
               {pageData.blocks.length > 1 && (
                 <button
                   onClick={() => removeBlock(index)}
@@ -241,14 +245,26 @@ export default function Notebook({
               )}
               {block.type === "math" && (
                 <button
-                  onClick={() => calculateSimplification(index)}
+                  onClick={() => magicFunction(index, calculateSimplification)}
                   className={`p-1 border rounded-md transition-colors cursor-pointer ${
                     theme === "light"
                       ? "bg-white border-neutral-200 text-neutral-400 hover:text-black"
                       : "bg-neutral-900 border-neutral-800 text-neutral-500 hover:text-white"
                   }`}
                 >
-                  <Shrimp className="w-3 h-3" />
+                  <Shrink className="w-3 h-3" />
+                </button>
+              )}
+              {block.type === "math" && (
+                <button
+                  onClick={() => magicFunction(index, calculateExpansion)}
+                  className={`p-1 border rounded-md transition-colors cursor-pointer ${
+                    theme === "light"
+                      ? "bg-white border-neutral-200 text-neutral-400 hover:text-black"
+                      : "bg-neutral-900 border-neutral-800 text-neutral-500 hover:text-white"
+                  }`}
+                >
+                  <Expand className="w-3 h-3" />
                 </button>
               )}
             </div>
@@ -277,7 +293,7 @@ export default function Notebook({
           <Type className="w-3 h-3" />
         </button>
         <button
-          onClick={() => addSeparator(pageData.blocks.length-1)}
+          onClick={() => addSeparator(pageData.blocks.length - 1)}
           className={`p-1 border-dashed hover:shadow-sm active:shadow-none flex-1 h-full flex items-center justify-center border rounded-md transition-all cursor-pointer ${
             theme === "light"
               ? "bg-white border-neutral-200 text-neutral-400 hover:text-black"

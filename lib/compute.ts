@@ -1,4 +1,4 @@
-import { ComputeEngine } from "@cortex-js/compute-engine";
+import { ComputeEngine, expandAll, simplify } from "@cortex-js/compute-engine";
 import { db } from "./db";
 
 const ce = new ComputeEngine();
@@ -48,7 +48,9 @@ export async function evaluateMath(latexInput: string): Promise<string | null> {
   }
 }
 
-export async function simplify(latexInput: string): Promise<string | null> {
+export async function calculateSimplification(
+  latexInput: string,
+): Promise<string | null> {
   if (!latexInput || !latexInput.trim()) return null;
 
   const angularUnit = await db.config.get("angle");
@@ -56,8 +58,27 @@ export async function simplify(latexInput: string): Promise<string | null> {
 
   try {
     const cleanInput = latexInput.replace(/\\text{[^}]*}/g, "").trim();
+    const res = simplify(cleanInput);
 
-    const res = ce.parse(cleanInput).simplify();
+    return res.latex;
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+}
+
+export async function calculateExpansion(
+  latexInput: string,
+): Promise<string | null> {
+  if (!latexInput || !latexInput.trim()) return null;
+
+  const angularUnit = await db.config.get("angle");
+  ce.angularUnit = angularUnit?.value ?? "deg";
+
+  try {
+    const cleanInput = latexInput.replace(/\\text{[^}]*}/g, "").trim();
+    const res = expandAll(cleanInput);
+
     return res.latex;
   } catch (error) {
     console.error(error);
