@@ -11,6 +11,7 @@ interface MathBlockProps {
   onBackspaceEmpty: () => void;
   theme: "light" | "dark";
   autoFocus?: boolean;
+  hasError: boolean;
 }
 
 interface MathFieldElement extends HTMLElement {
@@ -29,17 +30,18 @@ export default function MathBlock({
   onBackspaceEmpty,
   theme,
   autoFocus,
+  hasError,
 }: MathBlockProps) {
   const mathfieldRef = useRef<MathFieldElement | null>(null);
   const [suggestion, setSuggestion] = useState<string>("");
 
-  const calculateSuggestion = (currentValue: string) => {
+  const calculateSuggestion = async (currentValue: string) => {
     if (!currentValue || !currentValue.trim().endsWith("=")) {
       setSuggestion("");
       return;
     }
     try {
-      const result = evaluateMath(currentValue);
+      const result = await evaluateMath(currentValue);
       if (result && result.trim() !== currentValue.trim()) {
         setSuggestion(result);
       } else {
@@ -108,9 +110,13 @@ export default function MathBlock({
   return (
     <div
       className={`w-full px-6 py-4 border rounded-xl flex flex-col justify-center transition-all relative ${
-        theme === "light"
-          ? "bg-white border-neutral-200/70 focus-within:border-neutral-400 shadow-xs"
-          : "bg-neutral-900/40 border-neutral-900 focus-within:border-neutral-800 shadow-md"
+        theme === "light" ? "bg-white shadow-xs" : "bg-neutral-900/40 shadow-md"
+      } ${
+        hasError
+          ? "border-red-400/70 focus-within:border-red-500"
+          : theme === "light"
+            ? "border-neutral-200/70 focus-within:border-neutral-400"
+            : "border-neutral-900 focus-within:border-neutral-800"
       }`}
     >
       <div className="w-full relative flex items-center">
@@ -127,6 +133,7 @@ export default function MathBlock({
             display: "block",
             color: theme === "light" ? "#0f0f0f" : "#f0f0f0",
           }}
+          mathVirtualKeyboardPolicy={"manual"}
         />
 
         {suggestion && (

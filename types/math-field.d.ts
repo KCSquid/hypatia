@@ -10,6 +10,7 @@ declare module "react/jsx-runtime" {
       "math-field": React.DetailedHTMLProps<
         React.HTMLAttributes<MathfieldElement> & {
           value?: string;
+          mathVirtualKeyboardPolicy: string;
         },
         MathfieldElement
       >;

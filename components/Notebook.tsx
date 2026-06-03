@@ -4,16 +4,23 @@ import React, { useEffect, useState, useCallback } from "react";
 import { db, BlockItem, NotebookPage } from "@/lib/db";
 import MathBlock from "./MathBlock";
 import TextBlock from "./TextBlock";
-import { X, Type, Sigma, Columns } from "lucide-react";
+import { X, Type, Sigma, Columns, Shrimp } from "lucide-react";
+import { simplify } from "@/lib/compute";
 
 interface NotebookProps {
   activePageId: string | null;
   theme: "light" | "dark";
+  title: string;
 }
 
-export default function Notebook({ activePageId, theme }: NotebookProps) {
+export default function Notebook({
+  activePageId,
+  theme,
+  title,
+}: NotebookProps) {
   const [pageData, setPageData] = useState<NotebookPage | null>(null);
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
+  const [error, setError] = useState<number | null>(null);
 
   useEffect(() => {
     function check() {
@@ -40,6 +47,7 @@ export default function Notebook({ activePageId, theme }: NotebookProps) {
     if (!activePageId || !pageData) return;
     const updatedPage: NotebookPage = {
       ...pageData,
+      title: title,
       blocks: updatedBlocks,
       updatedAt: getTimestamp(),
     };
@@ -99,6 +107,9 @@ export default function Notebook({ activePageId, theme }: NotebookProps) {
 
   const updateBlockValue = (index: number, val: string) => {
     if (!pageData) return;
+    if (index === error) {
+      setError(null);
+    }
     const updated = [...pageData.blocks];
     updated[index].latex = val;
     saveToDisk(updated);
@@ -137,6 +148,26 @@ export default function Notebook({ activePageId, theme }: NotebookProps) {
       </div>
     );
   }
+
+  const calculateSimplification = async (index: number) => {
+    const currentValue = pageData.blocks[index].latex;
+    if (!currentValue) {
+      return;
+    }
+    try {
+      const result = await simplify(currentValue);
+      if (!result || result.trim() === currentValue.trim()) return;
+      if (result.includes("\\error")) {
+        setError(index);
+        return;
+      }
+
+      updateBlockValue(index, result);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_) {
+      console.log("error");
+    }
+  };
 
   return (
     <div className="w-full max-w-2xl flex flex-col items-center space-y-1.5">
@@ -191,40 +222,11 @@ export default function Notebook({ activePageId, theme }: NotebookProps) {
                 onBackspaceEmpty={() => removeBlock(index)}
                 theme={theme}
                 autoFocus={isFocused}
+                hasError={index === error}
               />
             )}
 
-            <div className="absolute -right-16 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 grid grid-cols-2 grid-rows-2 gap-1">
-              <button
-                onClick={() => addBlockBelow(index, "math")}
-                className={`p-1 border rounded-md transition-colors cursor-pointer ${
-                  theme === "light"
-                    ? "bg-white border-neutral-200 text-neutral-400 hover:text-black"
-                    : "bg-neutral-900 border-neutral-800 text-neutral-500 hover:text-white"
-                }`}
-              >
-                <Sigma className="w-3 h-3" />
-              </button>
-              <button
-                onClick={() => addBlockBelow(index, "text")}
-                className={`p-1 border rounded-md transition-colors cursor-pointer ${
-                  theme === "light"
-                    ? "bg-white border-neutral-200 text-neutral-400 hover:text-black"
-                    : "bg-neutral-900 border-neutral-800 text-neutral-500 hover:text-white"
-                }`}
-              >
-                <Type className="w-3 h-3" />
-              </button>
-              <button
-                onClick={() => addSeparator(index)}
-                className={`p-1 border rounded-md transition-colors cursor-pointer ${
-                  theme === "light"
-                    ? "bg-white border-neutral-200 text-neutral-400 hover:text-black"
-                    : "bg-neutral-900 border-neutral-800 text-neutral-500 hover:text-white"
-                }`}
-              >
-                <Columns className="w-3 h-3" />
-              </button>
+            <div className="absolute -right-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 grid grid-cols-1 grid-rows-2 gap-1">
               {pageData.blocks.length > 1 && (
                 <button
                   onClick={() => removeBlock(index)}
@@ -237,10 +239,54 @@ export default function Notebook({ activePageId, theme }: NotebookProps) {
                   <X className="w-3 h-3" />
                 </button>
               )}
+              {block.type === "math" && (
+                <button
+                  onClick={() => calculateSimplification(index)}
+                  className={`p-1 border rounded-md transition-colors cursor-pointer ${
+                    theme === "light"
+                      ? "bg-white border-neutral-200 text-neutral-400 hover:text-black"
+                      : "bg-neutral-900 border-neutral-800 text-neutral-500 hover:text-white"
+                  }`}
+                >
+                  <Shrimp className="w-3 h-3" />
+                </button>
+              )}
             </div>
           </div>
         );
       })}
+      <div className="opacity-0 hover:opacity-100 transition-opacity duration-250 w-full flex items-center justify-between gap-2 h-8">
+        <button
+          onClick={() => addBlockBelow(Infinity, "math")}
+          className={`p-1 border-dashed hover:shadow-sm active:shadow-none flex-1 h-full flex items-center justify-center border rounded-md transition-all cursor-pointer ${
+            theme === "light"
+              ? "bg-white border-neutral-200 text-neutral-400 hover:text-black"
+              : "bg-neutral-900 border-neutral-800 text-neutral-500 hover:text-white"
+          }`}
+        >
+          <Sigma className="w-3 h-3" />
+        </button>
+        <button
+          onClick={() => addBlockBelow(Infinity, "text")}
+          className={`p-1 border-dashed hover:shadow-sm active:shadow-none flex-1 h-full flex items-center justify-center border rounded-md transition-all cursor-pointer ${
+            theme === "light"
+              ? "bg-white border-neutral-200 text-neutral-400 hover:text-black"
+              : "bg-neutral-900 border-neutral-800 text-neutral-500 hover:text-white"
+          }`}
+        >
+          <Type className="w-3 h-3" />
+        </button>
+        <button
+          onClick={() => addSeparator(pageData.blocks.length-1)}
+          className={`p-1 border-dashed hover:shadow-sm active:shadow-none flex-1 h-full flex items-center justify-center border rounded-md transition-all cursor-pointer ${
+            theme === "light"
+              ? "bg-white border-neutral-200 text-neutral-400 hover:text-black"
+              : "bg-neutral-900 border-neutral-800 text-neutral-500 hover:text-white"
+          }`}
+        >
+          <Columns className="w-3 h-3" />
+        </button>
+      </div>
     </div>
   );
 }

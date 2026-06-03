@@ -2,7 +2,17 @@
 
 import React, { useEffect, useState } from "react";
 import { db, NotebookPage } from "@/lib/db";
-import { X, Plus, Trash2, Moon, Sun, Download, Upload } from "lucide-react";
+import {
+  X,
+  Plus,
+  Trash2,
+  Moon,
+  Sun,
+  Download,
+  Upload,
+  TriangleRight,
+  Circle,
+} from "lucide-react";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -10,7 +20,9 @@ interface SidebarProps {
   activePageId: string | null;
   onSelectPage: (id: string) => void;
   theme: "light" | "dark";
+  angle: "rad" | "deg";
   onToggleTheme: () => void;
+  onToggleAngle: () => void;
   onRequestDelete: (pageId: string, pageTitle: string) => void;
 }
 
@@ -20,7 +32,9 @@ export default function Sidebar({
   activePageId,
   onSelectPage,
   theme,
+  angle,
   onToggleTheme,
+  onToggleAngle,
   onRequestDelete,
 }: SidebarProps) {
   const [pages, setPages] = useState<NotebookPage[]>([]);
@@ -107,7 +121,7 @@ export default function Sidebar({
         }`}
       >
         <div className="flex justify-between items-center mb-2">
-          <h1 className="text-xs font-bold tracking-[0.2em] lowercase opacity-60 font-mono">
+          <h1 className="text-xs font-bold lowercase opacity-60 font-mono">
             hypatia
           </h1>
           <button
@@ -120,7 +134,7 @@ export default function Sidebar({
 
         <button
           onClick={createNewPage}
-          className={`w-full flex items-center justify-center gap-2 text-xs font-medium px-3 py-2.5 rounded-lg border transition-all duration-200 cursor-pointer mb-6 ${
+          className={`w-full flex items-center justify-center active:shadow-none gap-2 text-xs font-medium px-3 py-2.5 rounded-lg border transition-all duration-200 cursor-pointer mb-6 ${
             theme === "light"
               ? "bg-white border-neutral-200 shadow-sm hover:bg-neutral-50 text-neutral-800"
               : "bg-neutral-900 border-neutral-800 shadow-md hover:bg-neutral-800 text-neutral-200"
@@ -143,11 +157,11 @@ export default function Sidebar({
                   onSelectPage(p.id);
                   onClose();
                 }}
-                className={`flex-1 text-left text-xs px-3 py-2.5 rounded-lg truncate cursor-pointer font-medium ${
+                className={`flex-1 text-left text-xs px-3 py-2.5 rounded-lg truncate cursor-pointer font-medium transition-colors ${
                   activePageId === p.id
                     ? theme === "light"
-                      ? "bg-neutral-100 text-black font-semibold"
-                      : "bg-neutral-900 text-white font-semibold"
+                      ? "bg-neutral-100 group-hover:bg-neutral-200/75 text-black font-semibold"
+                      : "bg-neutral-900 group-hover:bg-neutral-800/75 text-white font-semibold"
                     : theme === "light"
                       ? "text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900"
                       : "text-neutral-400 hover:bg-neutral-900/50 hover:text-neutral-200"
@@ -182,6 +196,20 @@ export default function Sidebar({
             )}
             {theme === "light" ? "shift dark theme" : "shift light theme"}
           </button>
+          <button
+            onClick={onToggleAngle}
+            className={`w-full flex items-center gap-2 text-left transition-colors cursor-pointer ${theme === "light" ? "text-neutral-500 hover:text-black" : "text-neutral-400 hover:text-white"}`}
+          >
+            {angle === "rad" ? (
+              <Circle className="w-3.5 h-3.5" />
+            ) : (
+              <TriangleRight className="w-3.5 h-3.5" />
+            )}
+            {angle === "rad" ? "using radians" : "using degrees"}
+          </button>
+          <div
+            className={`border-t ${theme === "light" ? "border-neutral-200" : "border-neutral-900"}`}
+          ></div>
           <button
             onClick={exportCurrentPage}
             disabled={!activePageId}

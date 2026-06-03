@@ -1,10 +1,13 @@
 import { ComputeEngine } from "@cortex-js/compute-engine";
+import { db } from "./db";
 
 const ce = new ComputeEngine();
-ce.angularUnit = "deg";
 
-export function evaluateMath(latexInput: string): string | null {
+export async function evaluateMath(latexInput: string): Promise<string | null> {
   if (!latexInput || !latexInput.trim()) return null;
+
+  const angularUnit = await db.config.get("angle");
+  ce.angularUnit = angularUnit?.value ?? "deg";
 
   try {
     const cleanInput = latexInput.replace(/\\text{[^}]*}/g, "").trim();
@@ -39,6 +42,23 @@ export function evaluateMath(latexInput: string): string | null {
     }
 
     return evaluatedLast.latex;
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+}
+
+export async function simplify(latexInput: string): Promise<string | null> {
+  if (!latexInput || !latexInput.trim()) return null;
+
+  const angularUnit = await db.config.get("angle");
+  ce.angularUnit = angularUnit?.value ?? "deg";
+
+  try {
+    const cleanInput = latexInput.replace(/\\text{[^}]*}/g, "").trim();
+
+    const res = ce.parse(cleanInput).simplify();
+    return res.latex;
   } catch (error) {
     console.error(error);
     return null;

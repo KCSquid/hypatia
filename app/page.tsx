@@ -15,6 +15,7 @@ interface DeleteModalState {
 export default function Workspace() {
   const [activePageId, setActivePageId] = useState<string | null>(null);
   const [theme, setTheme] = useState<"light" | "dark">("dark");
+  const [angle, setAngle] = useState<"rad" | "deg">("deg");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [pageData, setPageData] = useState<NotebookPage | null>(null);
   const [deleteModal, setDeleteModal] = useState<DeleteModalState>({
@@ -27,6 +28,9 @@ export default function Workspace() {
     const initializeApp = async () => {
       const savedTheme = await db.config.get("theme");
       if (savedTheme) setTheme(savedTheme.value);
+
+      const savedAngle = await db.config.get("angle");
+      if (savedAngle) setAngle(savedAngle.value);
 
       const latest = await db.pages.orderBy("updatedAt").reverse().first();
       if (latest) setActivePageId(latest.id);
@@ -58,6 +62,12 @@ export default function Workspace() {
     const nextTheme = theme === "dark" ? "light" : "dark";
     setTheme(nextTheme);
     await db.config.put({ key: "theme", value: nextTheme });
+  };
+
+  const handleToggleAngle = async () => {
+    const nextAngle = angle === "rad" ? "deg" : "rad";
+    setAngle(nextAngle);
+    await db.config.put({ key: "angle", value: nextAngle });
   };
 
   const handleTitleChange = async (newTitle: string) => {
@@ -98,15 +108,19 @@ export default function Workspace() {
         activePageId={activePageId}
         onSelectPage={(id) => setActivePageId(id)}
         theme={theme}
+        angle={angle}
         onToggleTheme={handleToggleTheme}
+        onToggleAngle={handleToggleAngle}
         onRequestDelete={triggerDeletePrompt}
       />
 
       <main className="flex-1 overflow-y-auto p-16 flex flex-col items-center justify-start relative pt-24">
-        <div className="w-full max-w-2xl mb-12 flex items-center justify-start gap-4 fixed top-0 z-100 bg-black/25 backdrop-blur-xs pt-8 pb-16 mask-[linear-gradient(to_bottom,white_60%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,white_60%,transparent_100%)]">
+        <div
+          className={`w-full max-w-2xl mb-12 flex items-center justify-start gap-4 fixed top-0 ${theme === "light" ? "bg-white/25" : "bg-black/25"} backdrop-blur-xs pt-8 pb-16 mask-[linear-gradient(to_bottom,white_60%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,white_60%,transparent_100%)]`}
+        >
           <button
             onClick={() => setIsSidebarOpen(true)}
-            className={`p-2 border rounded-xl shadow-sm transition-all duration-200 cursor-pointer ${
+            className={`p-2 border rounded-xl shadow-sm active:shadow-none transition-all duration-200 cursor-pointer ${
               theme === "light"
                 ? "bg-white border-neutral-200/80 hover:bg-neutral-50 text-black"
                 : "bg-neutral-900 border-neutral-800/80 hover:bg-neutral-800 text-white"
@@ -120,7 +134,7 @@ export default function Workspace() {
               type="text"
               value={pageData.title}
               onChange={(e) => handleTitleChange(e.target.value)}
-              placeholder="Untitled Section"
+              placeholder="Untitled Workspace"
               className={`bg-transparent font-sans font-medium tracking-tight text-xl border-none outline-none focus:ring-0 p-0 m-0 ${
                 theme === "light"
                   ? "text-neutral-900 placeholder-neutral-300"
@@ -130,7 +144,11 @@ export default function Workspace() {
           )}
         </div>
 
-        <Notebook activePageId={activePageId} theme={theme} />
+        <Notebook
+          activePageId={activePageId}
+          theme={theme}
+          title={pageData?.title || ""}
+        />
       </main>
 
       {deleteModal.isOpen && (
