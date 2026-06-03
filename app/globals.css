@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+:root {
+  --font-sans: var(--font-csans), system-ui, sans-serif;
+  --font-mono: var(--font-cmono), monospace;
+}
+
+body {
+  font-family: var(--font-sans);
+}
+
+math-field {
+  --mathfield-font-family: var(--font-sans) !important;
+}
