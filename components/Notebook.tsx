@@ -14,6 +14,7 @@ import {
   Group,
   Astroid,
   Loader2,
+  BookA,
 } from "lucide-react";
 import {
   calculateSimplification,
@@ -182,19 +183,78 @@ export default function Notebook({
       }
 
       updateBlockValue(index, result);
-    } catch (_) {
-      console.log("error");
+    } catch (err) {
+      console.log("error:", err);
     }
   };
 
-  const aiAutoFill = async (index: number) => {
+  const aiWordProblem = async (index: number) => {
     if (!pageData) return;
     const currentValue = pageData.blocks[index].latex;
     if (!currentValue) return;
 
     setIsLoading(true);
     try {
-      const updated = await aiAnswer(currentValue, pageData);
+      const PROMPT = `You are a mathematical pedagogy engine. Your task is to break down the provided word problem into an instructional, step-by-step tutorial. You must output the response strictly as a valid JSON array of objects, with no markdown formatting wrappers (like \`\`\`json) outside the payload if streaming directly, or strictly conforming to this TypeScript type:
+
+      type OutputBlock = 
+        | { type: "text"; value: string }
+        | { type: "math"; value: string }
+        | { type: "separator" };
+
+      Instructions for content generation:
+      1. "text" blocks must explain the conceptual 'why' behind the next step in clear, friendly prose.
+      2. "math" blocks must contain exactly ONE single-line LaTeX expression. Do not use multiline formatting, linebreaks (\\), alignment characters (&), or environment blocks (\begin{...}). 
+      3. Break down algebra granularly. Every algebraic mutation, substitution, or simplification step requires its own "math" block.
+      4. Use a "separator" block to segment major shifts in the problem-solving phase (e.g., between "Defining Variables", "Setting up Equations", "Performing Calculus/Optimization", and "Final Answer Conclusion").
+      5. Ensure all LaTeX tokens are basic, standard symbols compatible with MathLive math-fields (e.g., use \cdot for multiplication, standard fractions, and basic exponents).
+      6. Don't add inline LaTeX. Math cannot show up in any text boxes, so it will look weird to the user. Instead, just add a math box and continue the text after.
+
+      Word Problem to solve:
+      ${currentValue}`;
+
+      const updated = await aiAnswer(PROMPT, pageData);
+      if (!updated || !updated.length) {
+        setError(index);
+        return;
+      }
+
+      setFocusedBlockId(updated[updated.length - 1].id);
+      saveToDisk(updated);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const aiCreate = async (index: number) => {
+    if (!pageData) return;
+    const currentValue = pageData.blocks[index].latex;
+    if (!currentValue) return;
+
+    setIsLoading(true);
+    try {
+      const PROMPT = `You are a mathematical pedagogy engine. Your task is to answer the users prompt/idea/question, converting it from plain english into the closest corresponding mathematically equivalent you can. You must output the response strictly as a valid JSON array of objects, with no markdown formatting wrappers (like \`\`\`json) outside the payload if streaming directly, or strictly conforming to this TypeScript type:
+
+      type OutputBlock = 
+        | { type: "text"; value: string }
+        | { type: "math"; value: string }
+        | { type: "separator" };
+
+      Instructions for content generation are as follows. Not all of these are strict rules, but general guidelines. Prioritize following
+      the prompt of the user, but never break the formatting guide no matter what (JSON, rule 5, rule 6, etc.).
+      1. "text" blocks must explain the conceptual 'why' behind the next step in clear, friendly prose.
+      2. "math" blocks must contain exactly ONE single-line LaTeX expression. Do not use multiline formatting, linebreaks (\\), alignment characters (&), or environment blocks (\begin{...}). 
+      3. Break down algebra granularly. Every algebraic mutation, substitution, or simplification step requires its own "math" block.
+      4. Use a "separator" block to segment major shifts in the problem-solving phase (e.g., between "Defining Variables", "Setting up Equations", "Performing Calculus/Optimization", and "Final Answer Conclusion").
+      5. Ensure all LaTeX tokens are basic, standard symbols compatible with MathLive math-fields (e.g., use \cdot for multiplication, standard fractions, and basic exponents).
+      6. Don't add inline LaTeX. Math cannot show up in any text boxes, so it will look weird to the user. Instead, just add a math box and continue the text after.
+
+      Users Prompt:
+      ${currentValue}`;
+
+      const updated = await aiAnswer(PROMPT, pageData);
       if (!updated || !updated.length) {
         setError(index);
         return;
@@ -295,11 +355,11 @@ export default function Notebook({
               />
             )}
 
-            <div className="absolute -right-16 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 grid grid-cols-2 grid-rows-2 gap-1">
+            <div className="absolute left-full ml-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 grid grid-flow-col grid-rows-2 grid-cols-3 w-20 h-12 gap-1">
               {pageData.blocks.length > 1 && (
                 <button
                   onClick={() => removeBlock(index)}
-                  className={`p-1 border rounded-md transition-colors cursor-pointer ${
+                  className={`p-1 border rounded-md transition-colors cursor-pointer w-min h-min ${
                     theme === "light"
                       ? "bg-white border-neutral-200 text-neutral-400 hover:text-red-500"
                       : "bg-neutral-900 border-neutral-800 text-neutral-500 hover:text-red-400"
@@ -311,7 +371,7 @@ export default function Notebook({
               {block.type === "math" && (
                 <button
                   onClick={() => magicFunction(index, calculateFactoring)}
-                  className={`p-1 border rounded-md transition-colors cursor-pointer ${
+                  className={`p-1 border rounded-md transition-colors cursor-pointer w-min h-min ${
                     theme === "light"
                       ? "bg-white border-neutral-200 text-neutral-400 hover:text-black"
                       : "bg-neutral-900 border-neutral-800 text-neutral-500 hover:text-white"
@@ -324,7 +384,7 @@ export default function Notebook({
               {block.type === "math" && (
                 <button
                   onClick={() => magicFunction(index, calculateSimplification)}
-                  className={`p-1 border rounded-md transition-colors cursor-pointer ${
+                  className={`p-1 border rounded-md transition-colors cursor-pointer w-min h-min ${
                     theme === "light"
                       ? "bg-white border-neutral-200 text-neutral-400 hover:text-black"
                       : "bg-neutral-900 border-neutral-800 text-neutral-500 hover:text-white"
@@ -337,7 +397,7 @@ export default function Notebook({
               {block.type === "math" && (
                 <button
                   onClick={() => magicFunction(index, calculateExpansion)}
-                  className={`p-1 border rounded-md transition-colors cursor-pointer ${
+                  className={`p-1 border rounded-md transition-colors cursor-pointer w-min h-min ${
                     theme === "light"
                       ? "bg-white border-neutral-200 text-neutral-400 hover:text-black"
                       : "bg-neutral-900 border-neutral-800 text-neutral-500 hover:text-white"
@@ -349,15 +409,28 @@ export default function Notebook({
               )}
               {block.type === "text" && (
                 <button
-                  onClick={() => aiAutoFill(index)}
-                  className={`p-1 border rounded-md transition-colors cursor-pointer ${
+                  onClick={() => aiCreate(index)}
+                  className={`p-1 border rounded-md transition-colors cursor-pointer w-min h-min ${
                     theme === "light"
                       ? "bg-white border-neutral-200 text-neutral-400 hover:text-black"
                       : "bg-neutral-900 border-neutral-800 text-neutral-500 hover:text-white"
                   }`}
-                  title="expand"
+                  title="plain-text to math"
                 >
                   <Astroid className="w-3 h-3" />
+                </button>
+              )}
+              {block.type === "text" && (
+                <button
+                  onClick={() => aiWordProblem(index)}
+                  className={`p-1 border rounded-md transition-colors cursor-pointer w-min h-min ${
+                    theme === "light"
+                      ? "bg-white border-neutral-200 text-neutral-400 hover:text-black"
+                      : "bg-neutral-900 border-neutral-800 text-neutral-500 hover:text-white"
+                  }`}
+                  title="solve word problem"
+                >
+                  <BookA className="w-3 h-3" />
                 </button>
               )}
             </div>
