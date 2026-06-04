@@ -4,12 +4,23 @@ import React, { useEffect, useState, useCallback } from "react";
 import { db, BlockItem, NotebookPage } from "@/lib/db";
 import MathBlock from "./MathBlock";
 import TextBlock from "./TextBlock";
-import { X, Type, Sigma, Columns, Expand, Shrink, Group } from "lucide-react";
+import {
+  X,
+  Type,
+  Sigma,
+  Columns,
+  Expand,
+  Shrink,
+  Group,
+  Astroid,
+  Loader2,
+} from "lucide-react";
 import {
   calculateSimplification,
   calculateExpansion,
   calculateFactoring,
 } from "@/lib/compute";
+import { aiAnswer, aiToBlocks } from "@/lib/aiTools";
 
 interface NotebookProps {
   activePageId: string | null;
@@ -25,6 +36,8 @@ export default function Notebook({
   const [pageData, setPageData] = useState<NotebookPage | null>(null);
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
   const [error, setError] = useState<number | null>(null);
+  const [pageLoaded, setPageLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     function check() {
@@ -39,8 +52,15 @@ export default function Notebook({
     if (check()) return;
 
     const loadPage = async () => {
-      const page = await db.pages.get(activePageId);
-      if (page) setPageData(page);
+      setIsLoading(true);
+      try {
+        const page = await db.pages.get(activePageId);
+        if (page) setPageData(page);
+      } catch (err) {
+        console.error("Failed to load page:", err);
+      } finally {
+        setIsLoading(false);
+      }
     };
     loadPage();
   }, [activePageId]);
@@ -145,40 +165,81 @@ export default function Notebook({
     }
   };
 
-  if (!activePageId || !pageData) {
-    return (
-      <div className="flex flex-col items-center justify-center text-neutral-400 font-light text-xs tracking-wider h-64 font-mono select-none opacity-50">
-        open drawer menu to begin computation
-      </div>
-    );
-  }
-
   const magicFunction = async (
     index: number,
     tool: (value: string) => Promise<string | null>,
   ) => {
+    if (!pageData) return;
     const currentValue = pageData.blocks[index].latex;
-    if (!currentValue) {
-      return;
-    }
+    if (!currentValue) return;
+
     try {
       const result = await tool(currentValue);
       if (!result || result.trim() === currentValue.trim()) return;
       if (result.includes("\\error")) {
-        console.log(result);
         setError(index);
         return;
       }
 
       updateBlockValue(index, result);
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (_) {
       console.log("error");
     }
   };
 
+  const aiAutoFill = async (index: number) => {
+    if (!pageData) return;
+    const currentValue = pageData.blocks[index].latex;
+    if (!currentValue) return;
+
+    setIsLoading(true);
+    try {
+      const updated = await aiAnswer(currentValue, pageData);
+      if (!updated || !updated.length) {
+        setError(index);
+        return;
+      }
+
+      setFocusedBlockId(updated[updated.length - 1].id);
+      saveToDisk(updated);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (!activePageId || !pageData) {
+    return (
+      <div className="flex flex-col items-center justify-center text-neutral-400 font-light text-xs tracking-wider h-64 font-mono select-none opacity-50">
+        create a new page from the sidebar!
+      </div>
+    );
+  }
+
+  if (!pageLoaded) {
+    setPageLoaded(true);
+  }
+
   return (
-    <div className="w-full max-w-2xl flex flex-col items-center space-y-1.5">
+    <div className="w-full max-w-2xl flex flex-col items-center space-y-1.5 relative">
+      {isLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/10 backdrop-blur-[1px] transition-all">
+          <div
+            className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl border shadow-sm ${
+              theme === "light"
+                ? "bg-white border-neutral-200 text-neutral-600"
+                : "bg-neutral-900 border-neutral-800 text-neutral-400"
+            }`}
+          >
+            <Loader2 className="w-4 h-4 animate-spin text-neutral-500" />
+            <span className="text-xs font-mono tracking-wide select-none">
+              generating ai response...
+            </span>
+          </div>
+        </div>
+      )}
+
       {pageData.blocks.map((block, index) => {
         if (block.type === "separator") {
           return (
@@ -284,6 +345,19 @@ export default function Notebook({
                   title="expand"
                 >
                   <Expand className="w-3 h-3" />
+                </button>
+              )}
+              {block.type === "text" && (
+                <button
+                  onClick={() => aiAutoFill(index)}
+                  className={`p-1 border rounded-md transition-colors cursor-pointer ${
+                    theme === "light"
+                      ? "bg-white border-neutral-200 text-neutral-400 hover:text-black"
+                      : "bg-neutral-900 border-neutral-800 text-neutral-500 hover:text-white"
+                  }`}
+                  title="expand"
+                >
+                  <Astroid className="w-3 h-3" />
                 </button>
               )}
             </div>
