@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 import Sidebar from "@/components/Sidebar";
 import Notebook from "@/components/Notebook";
-import { db, NotebookPage } from "@/lib/db";
+import ShortcutsModal from "@/components/ShortcutsModal";
+import { db } from "@/lib/db";
 import { Menu } from "lucide-react";
 
 interface DeleteModalState {
@@ -17,12 +19,16 @@ export default function Workspace() {
   const [theme, setTheme] = useState<"light" | "dark">("dark");
   const [angle, setAngle] = useState<"rad" | "deg">("deg");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [pageData, setPageData] = useState<NotebookPage | null>(null);
+  const pageData = useLiveQuery(
+    () => (activePageId ? db.pages.get(activePageId) : undefined),
+    [activePageId],
+  );
   const [deleteModal, setDeleteModal] = useState<DeleteModalState>({
     isOpen: false,
     pageId: null,
     pageTitle: "",
   });
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -38,26 +44,6 @@ export default function Workspace() {
     initializeApp();
   }, []);
 
-  useEffect(() => {
-    function check() {
-      if (!activePageId) {
-        setPageData(null);
-        return true;
-      }
-      return false;
-    }
-
-    if (check()) return;
-
-    const loadActivePage = async () => {
-      const page = await db.pages.get(activePageId);
-      if (page) setPageData(page);
-    };
-    loadActivePage();
-    const interval = setInterval(loadActivePage, 1000);
-    return () => clearInterval(interval);
-  }, [activePageId]);
-
   const handleToggleTheme = async () => {
     const nextTheme = theme === "dark" ? "light" : "dark";
     setTheme(nextTheme);
@@ -72,9 +58,7 @@ export default function Workspace() {
 
   const handleTitleChange = async (newTitle: string) => {
     if (!activePageId || !pageData) return;
-    const updatedPage = { ...pageData, title: newTitle, updatedAt: Date.now() };
-    setPageData(updatedPage);
-    await db.pages.put(updatedPage);
+    await db.pages.put({ ...pageData, title: newTitle, updatedAt: Date.now() });
   };
 
   const triggerDeletePrompt = (pageId: string, pageTitle: string) => {
@@ -112,6 +96,13 @@ export default function Workspace() {
         onToggleTheme={handleToggleTheme}
         onToggleAngle={handleToggleAngle}
         onRequestDelete={triggerDeletePrompt}
+        onShowShortcuts={() => setShortcutsOpen(true)}
+      />
+
+      <ShortcutsModal
+        isOpen={shortcutsOpen}
+        onClose={() => setShortcutsOpen(false)}
+        theme={theme}
       />
 
       <main className="flex-1 overflow-y-auto p-16 flex flex-col items-center justify-start relative pt-24">
@@ -144,11 +135,7 @@ export default function Workspace() {
           )}
         </div>
 
-        <Notebook
-          activePageId={activePageId}
-          theme={theme}
-          title={pageData?.title || ""}
-        />
+        <Notebook activePageId={activePageId} theme={theme} />
       </main>
 
       {deleteModal.isOpen && (

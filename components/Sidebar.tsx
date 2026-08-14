@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 import { db, NotebookPage } from "@/lib/db";
 import {
   X,
@@ -12,6 +13,7 @@ import {
   Upload,
   TriangleRight,
   Circle,
+  Keyboard,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -24,6 +26,7 @@ interface SidebarProps {
   onToggleTheme: () => void;
   onToggleAngle: () => void;
   onRequestDelete: (pageId: string, pageTitle: string) => void;
+  onShowShortcuts: () => void;
 }
 
 export default function Sidebar({
@@ -36,18 +39,11 @@ export default function Sidebar({
   onToggleTheme,
   onToggleAngle,
   onRequestDelete,
+  onShowShortcuts,
 }: SidebarProps) {
-  const [pages, setPages] = useState<NotebookPage[]>([]);
-
-  useEffect(() => {
-    const fetchPages = async () => {
-      const allPages = await db.pages.orderBy("updatedAt").reverse().toArray();
-      setPages(allPages);
-    };
-    fetchPages();
-    const interval = setInterval(fetchPages, 1000);
-    return () => clearInterval(interval);
-  }, []);
+  const pages =
+    useLiveQuery(() => db.pages.orderBy("updatedAt").reverse().toArray()) ??
+    [];
 
   const createNewPage = async () => {
     const id = `page_${Date.now()}`;
@@ -56,7 +52,14 @@ export default function Sidebar({
       title: `Untitled Workspace`,
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      blocks: [{ id: `block_${Date.now()}`, type: "math", latex: "" }],
+      blocks: [
+        {
+          id: `block_${Date.now()}`,
+          type: "math",
+          latex: "",
+          lines: [{ id: `line_${Date.now()}`, latex: "" }],
+        },
+      ],
     };
     await db.pages.add(newPage);
     onSelectPage(id);
@@ -206,6 +209,12 @@ export default function Sidebar({
               <TriangleRight className="w-3.5 h-3.5" />
             )}
             {angle === "rad" ? "using radians" : "using degrees"}
+          </button>
+          <button
+            onClick={onShowShortcuts}
+            className={`w-full flex items-center gap-2 text-left transition-colors cursor-pointer ${theme === "light" ? "text-neutral-500 hover:text-black" : "text-neutral-400 hover:text-white"}`}
+          >
+            <Keyboard className="w-3.5 h-3.5" /> keyboard shortcuts
           </button>
           <div
             className={`border-t ${theme === "light" ? "border-neutral-200" : "border-neutral-900"}`}

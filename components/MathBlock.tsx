@@ -1,156 +1,149 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { evaluateMath } from "@/lib/compute";
+import { Expand, Group, Shrink, Trash2, X } from "lucide-react";
+import MathLineField from "./MathLineField";
+import { MathLine } from "@/lib/db";
+import {
+  calculateExpansion,
+  calculateFactoring,
+  calculateSimplification,
+} from "@/lib/compute";
+
+type MagicTool = (value: string) => Promise<string | null>;
 
 interface MathBlockProps {
-  id: string;
-  initialValue: string;
-  onChange: (val: string) => void;
-  onEnterPress: () => void;
-  onBackspaceEmpty: () => void;
+  lines: MathLine[];
   theme: "light" | "dark";
-  autoFocus?: boolean;
-  hasError: boolean;
-}
-
-interface MathFieldElement extends HTMLElement {
-  value: string;
-  setValue: (
-    value: string,
-    options?: { silenceNotifications?: boolean },
-  ) => void;
+  focusedLineId: string | null;
+  errorLineId: string | null;
+  pulses: Record<string, number>;
+  onLineChange: (lineIndex: number, val: string) => void;
+  onNewLine: (lineIndex: number) => void;
+  onNewBlock: () => void;
+  onNewTextBlock: () => void;
+  onDeleteLine: (lineIndex: number) => void;
+  onDeleteBlock: () => void;
+  onNavigate: (lineIndex: number, direction: "up" | "down") => void;
+  onMoveLine: (lineIndex: number, direction: "up" | "down") => void;
+  onMoveBlock: (direction: "up" | "down") => void;
+  onMagic: (lineIndex: number, tool: MagicTool) => void;
+  canDeleteBlock: boolean;
 }
 
 export default function MathBlock({
-  id,
-  initialValue,
-  onChange,
-  onEnterPress,
-  onBackspaceEmpty,
+  lines,
   theme,
-  autoFocus,
-  hasError,
+  focusedLineId,
+  errorLineId,
+  pulses,
+  onLineChange,
+  onNewLine,
+  onNewBlock,
+  onNewTextBlock,
+  onDeleteLine,
+  onDeleteBlock,
+  onNavigate,
+  onMoveLine,
+  onMoveBlock,
+  onMagic,
+  canDeleteBlock,
 }: MathBlockProps) {
-  const mathfieldRef = useRef<MathFieldElement | null>(null);
-  const [suggestion, setSuggestion] = useState<string>("");
-
-  const calculateSuggestion = async (currentValue: string) => {
-    if (!currentValue || !currentValue.trim().endsWith("=")) {
-      setSuggestion("");
-      return;
-    }
-    try {
-      const result = await evaluateMath(currentValue);
-      if (result && result.trim() !== currentValue.trim()) {
-        setSuggestion(result);
-      } else {
-        setSuggestion("");
-      }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (_) {
-      setSuggestion("");
-    }
-  };
-
-  useEffect(() => {
-    const mf = mathfieldRef.current;
-    if (mf && autoFocus) {
-      setTimeout(() => mf.focus(), 10);
-    }
-  }, [autoFocus]);
-
-  useEffect(() => {
-    const mf = mathfieldRef.current;
-    if (mf && mf.value !== initialValue) {
-      mf.setValue(initialValue, { silenceNotifications: true });
-      calculateSuggestion(initialValue);
-    }
-  }, [initialValue]);
-
-  useEffect(() => {
-    const mf = mathfieldRef.current;
-    if (!mf) return;
-
-    const handleInput = (e: Event) => {
-      const target = e.target as MathFieldElement | null;
-      const val = target ? target.value : "";
-      onChange(val);
-      calculateSuggestion(val);
-    };
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Tab") {
-        if (suggestion) {
-          e.preventDefault();
-          e.stopPropagation();
-          const finalValue = mf.value + suggestion;
-          mf.setValue(finalValue);
-          onChange(finalValue);
-          setSuggestion("");
-          setTimeout(() => mf.focus(), 0);
-        }
-      } else if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        onEnterPress();
-      } else if (e.key === "Backspace" && !mf.value) {
-        e.preventDefault();
-        onBackspaceEmpty();
-      }
-    };
-
-    mf.addEventListener("input", handleInput);
-    mf.addEventListener("keydown", handleKeyDown);
-    return () => {
-      mf.removeEventListener("input", handleInput);
-      mf.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [onChange, onEnterPress, onBackspaceEmpty, suggestion]);
-
   return (
     <div
-      className={`w-full px-6 py-4 border rounded-xl flex flex-col justify-center transition-all relative ${
-        theme === "light" ? "bg-white shadow-xs" : "bg-neutral-900/40 shadow-md"
-      } ${
-        hasError
-          ? "border-red-400/70 focus-within:border-red-500"
-          : theme === "light"
-            ? "border-neutral-200/70 focus-within:border-neutral-400"
-            : "border-neutral-900 focus-within:border-neutral-800"
+      className={`w-full px-6 py-4 border rounded-xl transition-all relative group ${
+        theme === "light"
+          ? "bg-white shadow-xs border-neutral-200/70 focus-within:border-neutral-400"
+          : "bg-neutral-900/40 shadow-md border-neutral-900 focus-within:border-neutral-800"
       }`}
     >
-      <div className="w-full relative flex items-center">
-        <math-field
-          id={id}
-          ref={mathfieldRef}
-          style={{
-            width: "100%",
-            padding: "4px 0",
-            fontSize: "1.25rem",
-            background: "transparent",
-            border: "none",
-            outline: "none",
-            display: "block",
-            color: theme === "light" ? "#0f0f0f" : "#f0f0f0",
-          }}
-          mathVirtualKeyboardPolicy={"manual"}
-        />
+      <div className="flex flex-col gap-4">
+        {lines.map((line, lineIndex) => (
+          <div key={line.id} className="w-full group/line relative">
+            <MathLineField
+              id={`input-${line.id}`}
+              initialValue={line.latex}
+              onChange={(val) => onLineChange(lineIndex, val)}
+              onNewLine={() => onNewLine(lineIndex)}
+              onNewBlock={onNewBlock}
+              onNewTextBlock={onNewTextBlock}
+              onDeleteLine={() => onDeleteLine(lineIndex)}
+              onDeleteBlock={onDeleteBlock}
+              onNavigate={(direction) => onNavigate(lineIndex, direction)}
+              onMoveLine={(direction) => onMoveLine(lineIndex, direction)}
+              onMoveBlock={onMoveBlock}
+              theme={theme}
+              autoFocus={focusedLineId === line.id}
+              hasError={errorLineId === line.id}
+              pulseKey={pulses[line.id]}
+            />
 
-        {suggestion && (
-          <div
-            className="absolute pointer-events-none select-none text-xs font-mono font-light tracking-wide px-3 py-1 border rounded-md transition-all z-10"
-            style={{
-              right: "80px",
-              color: theme === "light" ? "#737373" : "#a3a3a3",
-              backgroundColor: theme === "light" ? "#f5f5f5" : "#171717",
-              borderColor: theme === "light" ? "#e5e5e5" : "#262626",
-            }}
-          >
-            Tab to complete:{" "}
-            <span className="font-bold ml-1">{suggestion}</span>
+            <div className="absolute left-full ml-4 top-1/2 -translate-y-1/2 opacity-0 group-hover/line:opacity-100 transition-opacity duration-150 flex flex-col gap-1">
+              <button
+                onClick={() => onMagic(lineIndex, calculateFactoring)}
+                className={`p-1 border rounded-md transition-colors cursor-pointer w-min h-min ${
+                  theme === "light"
+                    ? "bg-white border-neutral-200 text-neutral-400 hover:text-black"
+                    : "bg-neutral-900 border-neutral-800 text-neutral-500 hover:text-white"
+                }`}
+                title="factor"
+              >
+                <Group className="w-3 h-3" />
+              </button>
+              <button
+                onClick={() =>
+                  onMagic(lineIndex, calculateSimplification)
+                }
+                className={`p-1 border rounded-md transition-colors cursor-pointer w-min h-min ${
+                  theme === "light"
+                    ? "bg-white border-neutral-200 text-neutral-400 hover:text-black"
+                    : "bg-neutral-900 border-neutral-800 text-neutral-500 hover:text-white"
+                }`}
+                title="simplify"
+              >
+                <Shrink className="w-3 h-3" />
+              </button>
+              <button
+                onClick={() => onMagic(lineIndex, calculateExpansion)}
+                className={`p-1 border rounded-md transition-colors cursor-pointer w-min h-min ${
+                  theme === "light"
+                    ? "bg-white border-neutral-200 text-neutral-400 hover:text-black"
+                    : "bg-neutral-900 border-neutral-800 text-neutral-500 hover:text-white"
+                }`}
+                title="expand"
+              >
+                <Expand className="w-3 h-3" />
+              </button>
+              {lines.length > 1 && (
+                <button
+                  onClick={() => onDeleteLine(lineIndex)}
+                  className={`p-1 border rounded-md transition-colors cursor-pointer w-min h-min ${
+                    theme === "light"
+                      ? "bg-white border-neutral-200 text-neutral-400 hover:text-red-500"
+                      : "bg-neutral-900 border-neutral-800 text-neutral-500 hover:text-red-400"
+                  }`}
+                  title="delete line"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
           </div>
-        )}
+        ))}
       </div>
+
+      {canDeleteBlock && (
+        <button
+          onClick={onDeleteBlock}
+          className={`absolute -top-2.5 -right-2.5 opacity-0 group-hover:opacity-100 p-1.5 border rounded-full transition-all cursor-pointer ${
+            theme === "light"
+              ? "bg-white border-neutral-200 text-neutral-400 hover:text-red-500"
+              : "bg-neutral-900 border-neutral-800 text-neutral-500 hover:text-red-400"
+          }`}
+          title="delete block (Ctrl+Backspace)"
+        >
+          <Trash2 className="w-3 h-3" />
+        </button>
+      )}
     </div>
   );
 }
